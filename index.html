@@ -1,0 +1,311 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+#app { display: flex; flex-direction: column; height: 580px; background: var(--color-background-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; border: 0.5px solid var(--color-border-tertiary); }
+#toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); flex-wrap: wrap; }
+.tool-group { display: flex; align-items: center; gap: 4px; }
+.sep { width: 0.5px; height: 24px; background: var(--color-border-tertiary); margin: 0 4px; }
+.tool-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--border-radius-md); border: 0.5px solid transparent; cursor: pointer; background: transparent; color: var(--color-text-secondary); font-size: 16px; transition: all 0.15s; }
+.tool-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.tool-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+.color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+.color-btn.active { border-color: var(--color-text-primary); transform: scale(1.2); }
+#size-slider { width: 70px; accent-color: var(--color-text-info); }
+#canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+#main-canvas { cursor: crosshair; display: block; }
+#drop-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+#drop-hint i { font-size: 40px; color: var(--color-text-tertiary); display: block; margin-bottom: 12px; }
+#drop-hint p { font-size: 14px; color: var(--color-text-tertiary); line-height: 1.6; }
+#status { padding: 5px 12px; font-size: 12px; color: var(--color-text-tertiary); background: var(--color-background-primary); border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 12px; align-items: center; }
+.text-input-overlay { position: absolute; border: 2px dashed var(--color-border-info); background: transparent; font-size: 16px; color: var(--color-text-primary); outline: none; min-width: 100px; padding: 2px 6px; font-family: var(--font-sans); resize: none; overflow: hidden; }
+#download-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-primary); font-size: 13px; cursor: pointer; }
+#download-btn:hover { background: var(--color-background-secondary); }
+</style>
+
+<h2 class="sr-only" style="position:absolute;left:-9999px">スクリーンショット編集ツール。画像をクリップボードから貼り付けて、図形やテキストで注釈を追加できます。</h2>
+
+<div id="app">
+  <div id="toolbar">
+    <div class="tool-group">
+      <button class="tool-btn active" id="btn-select" title="選択"><i class="ti ti-pointer" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-pen" title="ペン"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-marker" title="マーカー"><i class="ti ti-highlight" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-rect" title="四角"><i class="ti ti-square" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-circle" title="丸"><i class="ti ti-circle" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-arrow" title="矢印"><i class="ti ti-arrow-up-right" aria-hidden="true"></i></button>
+      <button class="tool-btn" id="btn-text" title="テキスト"><i class="ti ti-letter-t" aria-hidden="true"></i></button>
+    </div>
+    <div class="sep"></div>
+    <div class="tool-group" id="color-group">
+      <div class="color-btn active" style="background:#E24B4A" data-color="#E24B4A"></div>
+      <div class="color-btn" style="background:#378ADD" data-color="#378ADD"></div>
+      <div class="color-btn" style="background:#639922" data-color="#639922"></div>
+      <div class="color-btn" style="background:#EF9F27" data-color="#EF9F27"></div>
+      <div class="color-btn" style="background:#D4537E" data-color="#D4537E"></div>
+      <div class="color-btn" style="background:#2C2C2A" data-color="#2C2C2A"></div>
+    </div>
+    <div class="sep"></div>
+    <div class="tool-group">
+      <i class="ti ti-line-dashed" style="font-size:14px;color:var(--color-text-tertiary)" aria-hidden="true"></i>
+      <input type="range" id="size-slider" min="1" max="20" value="3">
+      <span style="font-size:12px;color:var(--color-text-secondary);min-width:20px" id="size-label">3</span>
+    </div>
+    <div class="sep"></div>
+    <button class="tool-btn" id="btn-undo" title="元に戻す"><i class="ti ti-arrow-back-up" aria-hidden="true"></i></button>
+    <button class="tool-btn" id="btn-clear" title="クリア"><i class="ti ti-trash" aria-hidden="true"></i></button>
+    <button id="download-btn"><i class="ti ti-download" style="font-size:14px" aria-hidden="true"></i>保存</button>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="main-canvas"></canvas>
+    <div id="drop-hint">
+      <i class="ti ti-clipboard" aria-hidden="true"></i>
+      <p>Ctrl+V でクリップボードから画像を貼り付け<br><span style="font-size:12px">または画像ファイルをドロップ</span></p>
+    </div>
+  </div>
+
+  <div id="status">
+    <span id="status-tool">ツール: 選択</span>
+    <span id="status-pos"></span>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+const hint = document.getElementById('drop-hint');
+const statusTool = document.getElementById('status-tool');
+const statusPos = document.getElementById('status-pos');
+
+let tool = 'select';
+let color = '#E24B4A';
+let size = 3;
+let drawing = false;
+let startX, startY;
+let bgImage = null;
+let history = [];
+let paths = [];
+let currentPath = [];
+
+const toolNames = { select:'選択', pen:'ペン', marker:'マーカー', rect:'四角', circle:'丸', arrow:'矢印', text:'テキスト' };
+
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn[id^="btn-"]').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('btn-' + t);
+  if(el) el.classList.add('active');
+  statusTool.textContent = 'ツール: ' + toolNames[t];
+  canvas.style.cursor = t === 'text' ? 'text' : t === 'select' ? 'default' : 'crosshair';
+}
+
+document.getElementById('btn-select').onclick = () => setTool('select');
+document.getElementById('btn-pen').onclick = () => setTool('pen');
+document.getElementById('btn-marker').onclick = () => setTool('marker');
+document.getElementById('btn-rect').onclick = () => setTool('rect');
+document.getElementById('btn-circle').onclick = () => setTool('circle');
+document.getElementById('btn-arrow').onclick = () => setTool('arrow');
+document.getElementById('btn-text').onclick = () => setTool('text');
+
+document.querySelectorAll('.color-btn').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.color-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    color = b.dataset.color;
+  };
+});
+
+const sizeSlider = document.getElementById('size-slider');
+const sizeLabel = document.getElementById('size-label');
+sizeSlider.oninput = () => { size = parseInt(sizeSlider.value); sizeLabel.textContent = size; };
+
+function loadImage(img) {
+  const maxW = wrap.clientWidth - 20;
+  const maxH = wrap.clientHeight - 20;
+  let w = img.width, h = img.height;
+  if(w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+  if(h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+  canvas.width = w;
+  canvas.height = h;
+  bgImage = img;
+  hint.style.display = 'none';
+  canvas.style.boxShadow = '0 2px 16px rgba(0,0,0,0.15)';
+  redraw();
+  saveHistory();
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if(bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+  paths.forEach(drawShape);
+}
+
+function drawShape(s) {
+  ctx.save();
+  ctx.strokeStyle = s.color;
+  ctx.fillStyle = s.color;
+  ctx.lineWidth = s.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if(s.type === 'pen') {
+    ctx.beginPath();
+    s.pts.forEach((p,i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  } else if(s.type === 'marker') {
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = s.size * 6;
+    ctx.beginPath();
+    s.pts.forEach((p,i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  } else if(s.type === 'rect') {
+    ctx.strokeRect(s.x, s.y, s.w, s.h);
+  } else if(s.type === 'circle') {
+    const rx = Math.abs(s.w)/2, ry = Math.abs(s.h)/2;
+    ctx.beginPath();
+    ctx.ellipse(s.x + s.w/2, s.y + s.h/2, rx, ry, 0, 0, Math.PI*2);
+    ctx.stroke();
+  } else if(s.type === 'arrow') {
+    const ex = s.x + s.w, ey = s.y + s.h;
+    const angle = Math.atan2(ey - s.y, ex - s.x);
+    const headLen = Math.min(20, Math.hypot(s.w, s.h) * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - headLen * Math.cos(angle - 0.4), ey - headLen * Math.sin(angle - 0.4));
+    ctx.lineTo(ex - headLen * Math.cos(angle + 0.4), ey - headLen * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fill();
+  } else if(s.type === 'text') {
+    ctx.font = `${s.size * 5 + 10}px var(--font-sans, sans-serif)`;
+    ctx.fillStyle = s.color;
+    ctx.fillText(s.text, s.x, s.y);
+  }
+  ctx.restore();
+}
+
+function saveHistory() {
+  history.push(JSON.stringify(paths));
+  if(history.length > 30) history.shift();
+}
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX || e.touches?.[0]?.clientX || 0) - r.left;
+  const cy = (e.clientY || e.touches?.[0]?.clientY || 0) - r.top;
+  return { x: Math.round(cx), y: Math.round(cy) };
+}
+
+canvas.onmousedown = (e) => {
+  if(!bgImage) return;
+  const p = getPos(e);
+  if(tool === 'text') {
+    const inp = document.createElement('textarea');
+    inp.className = 'text-input-overlay';
+    inp.style.left = (canvas.offsetLeft + p.x) + 'px';
+    inp.style.top = (canvas.offsetTop + p.y) + 'px';
+    inp.style.fontSize = (size * 5 + 10) + 'px';
+    inp.style.color = color;
+    wrap.appendChild(inp);
+    inp.focus();
+    inp.onblur = () => {
+      const txt = inp.value.trim();
+      if(txt) { paths.push({ type:'text', x:p.x, y:p.y+size*5+10, color, size, text:txt }); saveHistory(); redraw(); }
+      inp.remove();
+    };
+    inp.onkeydown = (ev) => { if(ev.key === 'Escape') inp.remove(); };
+    return;
+  }
+  drawing = true;
+  startX = p.x; startY = p.y;
+  if(tool === 'pen' || tool === 'marker') currentPath = [{x:p.x, y:p.y}];
+};
+
+canvas.onmousemove = (e) => {
+  if(!bgImage) return;
+  const p = getPos(e);
+  statusPos.textContent = `${p.x}, ${p.y}`;
+  if(!drawing) return;
+  if(tool === 'pen' || tool === 'marker') {
+    currentPath.push({x:p.x, y:p.y});
+    redraw();
+    drawShape({ type:tool, pts:currentPath, color, size });
+  } else {
+    redraw();
+    drawShape({ type:tool, x:startX, y:startY, w:p.x-startX, h:p.y-startY, color, size });
+  }
+};
+
+canvas.onmouseup = (e) => {
+  if(!drawing) return;
+  const p = getPos(e);
+  drawing = false;
+  if(tool === 'pen' || tool === 'marker') {
+    if(currentPath.length > 1) { paths.push({ type:tool, pts:[...currentPath], color, size }); saveHistory(); }
+  } else {
+    const w = p.x - startX, h = p.y - startY;
+    if(Math.abs(w) > 2 || Math.abs(h) > 2) {
+      paths.push({ type:tool, x:startX, y:startY, w, h, color, size }); saveHistory();
+    }
+  }
+  redraw();
+};
+
+canvas.onmouseleave = () => { if(drawing) canvas.onmouseup({clientX:0,clientY:0}); };
+
+document.getElementById('btn-undo').onclick = () => {
+  if(history.length > 1) { history.pop(); paths = JSON.parse(history[history.length-1]); redraw(); }
+};
+
+document.getElementById('btn-clear').onclick = () => {
+  paths = []; saveHistory(); redraw();
+};
+
+document.getElementById('download-btn').onclick = () => {
+  const a = document.createElement('a');
+  a.download = 'screenshot-' + Date.now() + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+};
+
+function handleImageData(dataTransfer) {
+  const items = dataTransfer.items || [];
+  for(let i = 0; i < items.length; i++) {
+    if(items[i].type.startsWith('image/')) {
+      const f = items[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => loadImage(img);
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(f);
+      return true;
+    }
+  }
+  return false;
+}
+
+document.addEventListener('paste', (e) => {
+  if(!handleImageData(e.clipboardData)) return;
+  e.preventDefault();
+});
+
+wrap.ondragover = (e) => e.preventDefault();
+wrap.ondrop = (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => loadImage(img);
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  }
+};
+</script>
