@@ -10,14 +10,13 @@
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
-  <!-- ======================================================
-       Google AdSense
-       TODO: 収益化開始時の手順
-         1. YOUR_ADSENSE_CLIENT_ID を実際のIDに置き換える
-         2. このブロック全体の adsense-disabled クラスを削除する
-         3. ins タグのコメントアウト(<!-- -->)を外す
-       それまでユーザーには一切表示されません
-  ====================================================== -->
+  <!--
+    [AdSense 設定メモ]
+    収益化開始時の手順:
+      1. YOUR_ADSENSE_CLIENT_ID を実際のIDに置き換える
+      2. ad-top / ad-bottom の div から class="adsense-disabled" を削除する
+      3. ins タグの前後のコメント記号を外す
+  -->
   <style>.adsense-disabled { display: none !important; }</style>
 
   <style>
@@ -56,6 +55,21 @@
     .privacy-banner i { color: #3a9a4a; font-size: 18px; flex-shrink: 0; }
     .privacy-banner p { font-size: 12px; color: #2c5e30; line-height: 1.5; }
     #ad-top, #ad-bottom { width: 100%; max-width: 920px; text-align: center; }
+
+    /* ---- スマホ対応 ---- */
+    @media (max-width: 600px) {
+      body { padding: 8px; gap: 8px; }
+      #toolbar { gap: 4px; padding: 6px 8px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+      #toolbar::-webkit-scrollbar { display: none; }
+      .sep { margin: 0 2px; }
+      #size-slider { width: 48px; }
+      #font-size-input { width: 38px; }
+      #canvas-wrap { height: 55vw; min-height: 220px; }
+      .howto-grid { grid-template-columns: 1fr; }
+      #howto { padding: 14px 14px; }
+      #drop-hint p { font-size: 13px; }
+      #drop-hint i { font-size: 32px; }
+    }
   </style>
 </head>
 <body>
@@ -116,6 +130,11 @@
         <i class="ti ti-lock" style="font-size:13px"></i>
         画像はブラウザ内のみで処理されます。サーバーには送信・保存されません。
       </div>
+      <!-- スマホ向けファイル選択ボタン -->
+      <label id="file-select-btn" style="margin-top:14px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;cursor:pointer;">
+        <i class="ti ti-photo"></i> 画像を選択
+        <input type="file" accept="image/*" style="display:none" id="file-input">
+      </label>
     </div>
   </div>
 
@@ -150,7 +169,7 @@
     </div>
     <div class="howto-item">
       <div class="howto-icon"><i class="ti ti-keyboard"></i></div>
-      <div><h3>ショートカット</h3><p><strong>Ctrl+Z</strong> で元に戻す。V/P/H/R/C/A/T/B/M でツール切り替え。</p></div>
+      <div><h3>ショートカット</h3><p><strong>Ctrl+Z</strong>（Mac: ⌘Z）で直前の操作を元に戻せます。</p></div>
     </div>
     <div class="howto-item">
       <div class="howto-icon"><i class="ti ti-download"></i></div>
@@ -363,6 +382,31 @@ canvas.onmouseup = (e) => {
 };
 canvas.onmouseleave = () => { drawing=false; };
 
+// ---- タッチ対応 (スマホ・タブレット) ----
+function getTouchPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches[0] || e.changedTouches[0];
+  return { x: Math.round(t.clientX - r.left), y: Math.round(t.clientY - r.top) };
+}
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const p = getTouchPos(e);
+  canvas.onmousedown({ clientX: p.x + r.left, clientY: p.y + r.top });
+}, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const p = getTouchPos(e);
+  canvas.onmousemove({ clientX: p.x + r.left, clientY: p.y + r.top });
+}, { passive: false });
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const p = getTouchPos(e);
+  canvas.onmouseup({ clientX: p.x + r.left, clientY: p.y + r.top });
+}, { passive: false });
+
 document.getElementById('btn-undo').onclick  = undo;
 document.getElementById('btn-clear').onclick = () => { paths=[]; badgeCounter=1; saveHistory(); redraw(); };
 document.getElementById('dl-btn').onclick    = downloadImage;
@@ -392,6 +436,16 @@ function handlePaste(dt) {
   return false;
 }
 document.addEventListener('paste', (e) => { if(handlePaste(e.clipboardData)) e.preventDefault(); });
+
+// ---- ファイル選択ボタン (スマホ向け) ----
+document.getElementById('file-input').onchange = (e) => {
+  const f = e.target.files[0];
+  if(f && f.type.startsWith('image/')) {
+    const r = new FileReader();
+    r.onload = ev => { const img = new Image(); img.onload = () => loadImage(img); img.src = ev.target.result; };
+    r.readAsDataURL(f);
+  }
+};
 wrap.ondragover = (e) => e.preventDefault();
 wrap.ondrop = (e) => {
   e.preventDefault();
