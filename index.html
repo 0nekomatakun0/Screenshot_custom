@@ -131,10 +131,10 @@
         画像はブラウザ内のみで処理されます。サーバーには送信・保存されません。
       </div>
       <!-- スマホ向けファイル選択ボタン -->
-      <label id="file-select-btn" style="margin-top:14px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;cursor:pointer;">
+      <input type="file" accept="image/*" id="file-input" style="display:none">
+      <button id="file-select-btn" style="margin-top:14px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;cursor:pointer;font-family:inherit;">
         <i class="ti ti-photo"></i> 画像を選択
-        <input type="file" accept="image/*" style="display:none" id="file-input">
-      </label>
+      </button>
     </div>
   </div>
 
@@ -438,12 +438,15 @@ function handlePaste(dt) {
 document.addEventListener('paste', (e) => { if(handlePaste(e.clipboardData)) e.preventDefault(); });
 
 // ---- ファイル選択ボタン (スマホ向け) ----
-document.getElementById('file-input').onchange = (e) => {
+const fileInput = document.getElementById('file-input');
+document.getElementById('file-select-btn').addEventListener('click', () => fileInput.click());
+fileInput.onchange = (e) => {
   const f = e.target.files[0];
   if(f && f.type.startsWith('image/')) {
     const r = new FileReader();
     r.onload = ev => { const img = new Image(); img.onload = () => loadImage(img); img.src = ev.target.result; };
     r.readAsDataURL(f);
+    fileInput.value = ''; // 同じ画像を再選択できるようリセット
   }
 };
 wrap.ondragover = (e) => e.preventDefault();
