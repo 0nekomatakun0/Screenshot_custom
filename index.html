@@ -130,11 +130,14 @@
         <i class="ti ti-lock" style="font-size:13px"></i>
         画像はブラウザ内のみで処理されます。サーバーには送信・保存されません。
       </div>
-      <!-- スマホ向けファイル選択ボタン -->
-      <input type="file" accept="image/*" id="file-input" style="display:none">
-      <button id="file-select-btn" style="margin-top:14px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;cursor:pointer;font-family:inherit;">
-        <i class="ti ti-photo"></i> 画像を選択
-      </button>
+      <!-- スマホ向けファイル選択: opacity:0のinputを重ねる方式 (iOS Brave対応) -->
+      <div style="position:relative;margin-top:14px;display:inline-block;">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;pointer-events:none;">
+          <i class="ti ti-photo"></i> 画像を選択
+        </div>
+        <input type="file" accept="image/*" id="file-input"
+          style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;">
+      </div>
     </div>
   </div>
 
@@ -439,7 +442,6 @@ document.addEventListener('paste', (e) => { if(handlePaste(e.clipboardData)) e.p
 
 // ---- ファイル選択ボタン (スマホ向け) ----
 const fileInput = document.getElementById('file-input');
-document.getElementById('file-select-btn').addEventListener('click', () => fileInput.click());
 fileInput.onchange = (e) => {
   const f = e.target.files[0];
   if(f && f.type.startsWith('image/')) {
