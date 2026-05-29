@@ -123,20 +123,19 @@
   <div id="canvas-wrap">
     <canvas id="main-canvas"></canvas>
     <div id="drop-hint">
-      <i class="ti ti-clipboard"></i>
-      <p><strong>Ctrl+V</strong> でクリップボードから画像を貼り付け<br>
+      <i class="ti ti-clipboard" id="hint-icon"></i>
+      <p id="hint-text"><strong>Ctrl+V</strong> でクリップボードから画像を貼り付け<br>
       <span style="font-size:12px">または画像ファイルをドロップ</span></p>
       <div class="privacy-note">
         <i class="ti ti-lock" style="font-size:13px"></i>
         画像はブラウザ内のみで処理されます。サーバーには送信・保存されません。
       </div>
-      <!-- スマホ向けファイル選択: opacity:0のinputを重ねる方式 (iOS Brave対応) -->
-      <div style="position:relative;margin-top:14px;display:inline-block;">
-        <div style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:0.5px solid rgba(0,0,0,0.2);background:#fff;color:#2c2c2a;font-size:13px;pointer-events:none;">
-          <i class="ti ti-photo"></i> 画像を選択
-        </div>
-        <input type="file" accept="image/*" id="file-input"
-          style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;">
+      <!-- スマホ向け: PCヒントは非表示、file inputをそのまま表示 -->
+      <div id="mobile-upload" style="display:none;margin-top:16px;flex-direction:column;align-items:center;gap:10px;">
+        <label for="file-input" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;background:#185fa5;color:#fff;font-size:15px;cursor:pointer;font-family:inherit;font-weight:600;box-shadow:0 2px 8px rgba(24,95,165,0.3);">
+          <i class="ti ti-photo"></i> 写真・画像を選ぶ
+        </label>
+        <input type="file" id="file-input" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
       </div>
     </div>
   </div>
@@ -440,17 +439,25 @@ function handlePaste(dt) {
 }
 document.addEventListener('paste', (e) => { if(handlePaste(e.clipboardData)) e.preventDefault(); });
 
-// ---- ファイル選択ボタン (スマホ向け) ----
+// ---- ファイル選択 (スマホ対応) ----
 const fileInput = document.getElementById('file-input');
-fileInput.onchange = (e) => {
-  const f = e.target.files[0];
-  if(f && f.type.startsWith('image/')) {
-    const r = new FileReader();
-    r.onload = ev => { const img = new Image(); img.onload = () => loadImage(img); img.src = ev.target.result; };
-    r.readAsDataURL(f);
-    fileInput.value = ''; // 同じ画像を再選択できるようリセット
-  }
-};
+function loadFile(f) {
+  if(!f || !f.type.startsWith('image/')) return;
+  const r = new FileReader();
+  r.onload = ev => { const img = new Image(); img.onload = () => loadImage(img); img.src = ev.target.result; };
+  r.readAsDataURL(f);
+  fileInput.value = '';
+}
+fileInput.addEventListener('change', (e) => loadFile(e.target.files[0]));
+
+// スマホ判定: タッチ対応かつ画面幅が狭い場合
+const isMobile = ('ontouchstart' in window) && window.innerWidth < 768;
+if(isMobile) {
+  // スマホ: PC向けヒントを隠してモバイルUIを表示
+  document.getElementById('hint-icon').style.display = 'none';
+  document.getElementById('hint-text').style.display = 'none';
+  document.getElementById('mobile-upload').style.display = 'flex';
+}
 wrap.ondragover = (e) => e.preventDefault();
 wrap.ondrop = (e) => {
   e.preventDefault();
