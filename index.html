@@ -130,12 +130,12 @@
         <i class="ti ti-lock" style="font-size:13px"></i>
         画像はブラウザ内のみで処理されます。サーバーには送信・保存されません。
       </div>
-      <!-- スマホ向け: PCヒントは非表示、file inputをそのまま表示 -->
-      <div id="mobile-upload" style="display:none;margin-top:16px;flex-direction:column;align-items:center;gap:10px;">
-        <label for="file-input" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;background:#185fa5;color:#fff;font-size:15px;cursor:pointer;font-family:inherit;font-weight:600;box-shadow:0 2px 8px rgba(24,95,165,0.3);">
-          <i class="ti ti-photo"></i> 写真・画像を選ぶ
+      <!-- スマホ向け: labelの中にinputを直接入れる方式 -->
+      <div id="mobile-upload" style="display:none;margin-top:16px;">
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;background:#185fa5;color:#fff;font-size:15px;cursor:pointer;font-family:inherit;font-weight:600;box-shadow:0 2px 8px rgba(24,95,165,0.3);white-space:nowrap;">
+          <i class="ti ti-photo" style="font-size:18px;line-height:1;flex-shrink:0;"></i><span>写真・画像を選ぶ</span>
+          <input type="file" id="file-input" accept="image/*" style="width:1px;height:1px;opacity:0;position:absolute;top:0;left:0;">
         </label>
-        <input type="file" id="file-input" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
       </div>
     </div>
   </div>
@@ -456,7 +456,7 @@ if(isMobile) {
   // スマホ: PC向けヒントを隠してモバイルUIを表示
   document.getElementById('hint-icon').style.display = 'none';
   document.getElementById('hint-text').style.display = 'none';
-  document.getElementById('mobile-upload').style.display = 'flex';
+  document.getElementById('mobile-upload').style.display = 'block';
 }
 wrap.ondragover = (e) => e.preventDefault();
 wrap.ondrop = (e) => {
