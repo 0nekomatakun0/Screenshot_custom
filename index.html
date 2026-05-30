@@ -368,33 +368,40 @@ canvas.onmousedown = (e) => {
       return;
     }
     // 新規テキスト入力
+    const tx = p.x, ty = p.y;
     const inp = document.createElement('textarea');
     inp.className = 'text-input-overlay';
-    inp.style.left = (canvas.offsetLeft + p.x) + 'px';
-    inp.style.top  = (canvas.offsetTop  + p.y) + 'px';
+    inp.style.left = (canvas.offsetLeft + tx) + 'px';
+    inp.style.top  = (canvas.offsetTop  + ty) + 'px';
     inp.style.fontSize = fontSize + 'px';
     inp.style.color = color;
     inp.style.zIndex = 100;
+    inp.rows = 1;
+    // mousedownをinp内で止めてcanvasへ伝搬させない
+    inp.addEventListener('mousedown', ev => ev.stopPropagation());
+    inp.addEventListener('touchstart', ev => ev.stopPropagation());
     wrap.appendChild(inp);
-    // blurより先にEnterで確定できるように
+
     let committed = false;
     const commit = () => {
       if(committed) return;
       committed = true;
       const txt = inp.value.trim();
       if(txt) {
-        paths.push({type:'text', x:p.x, y:p.y + fontSize, color, size, fontSize, text:txt});
+        paths.push({type:'text', x:tx, y:ty + fontSize, color, size, fontSize, text:txt});
         saveHistory(); redraw();
       }
-      inp.remove();
+      if(inp.parentNode) inp.remove();
     };
     inp.onkeydown = (ev) => {
-      if(ev.key === 'Escape') { committed = true; inp.remove(); }
-      // Shift+Enter で改行、Enter で確定
+      ev.stopPropagation(); // Ctrl+Z などがcanvasに届かないように
+      if(ev.key === 'Escape') { committed = true; if(inp.parentNode) inp.remove(); return; }
       if(ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commit(); }
     };
-    inp.onblur = () => setTimeout(commit, 150); // 少し遅らせてEscapeと競合しないように
-    inp.focus();
+    // blurは200ms待ってから確定（フォーカス移動と競合しないように）
+    inp.addEventListener('blur', () => setTimeout(commit, 200));
+    // requestAnimationFrameでフォーカスを確実に当てる
+    requestAnimationFrame(() => inp.focus());
     return;
   }
 
@@ -439,7 +446,7 @@ canvas.onmousemove = (e) => {
 };
 
 canvas.onmouseup = (e) => {
-  // テキストドラッグ終了
+  // テキストドラッグ終了（drawingより先にチェック）
   if(draggingText !== null) {
     saveHistory();
     draggingText = null;
