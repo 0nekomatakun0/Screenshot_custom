@@ -325,29 +325,84 @@ function getPos(e) {
   return { x: Math.round((e.clientX??0)-r.left), y: Math.round((e.clientY??0)-r.top) };
 }
 
+// ---- テキスト移動機能 ----
+let draggingText = null, dragOffX = 0, dragOffY = 0;
+
+function findTextAt(x, y) {
+  // 後ろから探して一番手前のテキストを返す
+  for(let i = paths.length - 1; i >= 0; i--) {
+    const s = paths[i];
+    if(s.type !== 'text') continue;
+    ctx.font = `bold ${s.fontSize}px -apple-system,sans-serif`;
+    const w = ctx.measureText(s.text).width;
+    const h = s.fontSize;
+    if(x >= s.x && x <= s.x + w && y >= s.y - h && y <= s.y + 4) return i;
+  }
+  return -1;
+}
+
 canvas.onmousedown = (e) => {
   if(!bgImage) return;
   const p = getPos(e);
-  if(tool === 'text') {
-    const inp = document.createElement('textarea');
-    inp.className = 'text-input-overlay';
-    inp.style.left = (canvas.offsetLeft+p.x)+'px';
-    inp.style.top  = (canvas.offsetTop+p.y)+'px';
-    inp.style.fontSize = fontSize+'px';
-    inp.style.color = color;
-    wrap.appendChild(inp); inp.focus();
-    inp.onblur = () => {
-      const txt = inp.value.trim();
-      if(txt) { paths.push({type:'text',x:p.x,y:p.y+fontSize,color,size,fontSize,text:txt}); saveHistory(); redraw(); }
-      inp.remove();
-    };
-    inp.onkeydown = (ev) => { if(ev.key==='Escape') inp.remove(); };
+
+  // 選択ツール: テキストをドラッグ移動
+  if(tool === 'select') {
+    const idx = findTextAt(p.x, p.y);
+    if(idx >= 0) {
+      draggingText = idx;
+      dragOffX = p.x - paths[idx].x;
+      dragOffY = p.y - paths[idx].y;
+      canvas.style.cursor = 'move';
+    }
     return;
   }
+
+  if(tool === 'text') {
+    // 既存テキストの上でクリックしたら移動モードへ
+    const idx = findTextAt(p.x, p.y);
+    if(idx >= 0) {
+      draggingText = idx;
+      dragOffX = p.x - paths[idx].x;
+      dragOffY = p.y - paths[idx].y;
+      canvas.style.cursor = 'move';
+      return;
+    }
+    // 新規テキスト入力
+    const inp = document.createElement('textarea');
+    inp.className = 'text-input-overlay';
+    inp.style.left = (canvas.offsetLeft + p.x) + 'px';
+    inp.style.top  = (canvas.offsetTop  + p.y) + 'px';
+    inp.style.fontSize = fontSize + 'px';
+    inp.style.color = color;
+    inp.style.zIndex = 100;
+    wrap.appendChild(inp);
+    // blurより先にEnterで確定できるように
+    let committed = false;
+    const commit = () => {
+      if(committed) return;
+      committed = true;
+      const txt = inp.value.trim();
+      if(txt) {
+        paths.push({type:'text', x:p.x, y:p.y + fontSize, color, size, fontSize, text:txt});
+        saveHistory(); redraw();
+      }
+      inp.remove();
+    };
+    inp.onkeydown = (ev) => {
+      if(ev.key === 'Escape') { committed = true; inp.remove(); }
+      // Shift+Enter で改行、Enter で確定
+      if(ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commit(); }
+    };
+    inp.onblur = () => setTimeout(commit, 150); // 少し遅らせてEscapeと競合しないように
+    inp.focus();
+    return;
+  }
+
   if(tool === 'badge') {
-    paths.push({type:'badge',x:p.x,y:p.y,color,size,fontSize,num:badgeCounter++});
+    paths.push({type:'badge', x:p.x, y:p.y, color, size, fontSize, num:badgeCounter++});
     saveHistory(); redraw(); return;
   }
+
   drawing=true; startX=p.x; startY=p.y;
   if(tool==='pen'||tool==='marker') currentPath=[{x:p.x,y:p.y}];
 };
@@ -356,6 +411,20 @@ canvas.onmousemove = (e) => {
   if(!bgImage) return;
   const p = getPos(e);
   statusPos.textContent = `${p.x}, ${p.y}`;
+
+  // テキストドラッグ中
+  if(draggingText !== null) {
+    paths[draggingText].x = p.x - dragOffX;
+    paths[draggingText].y = p.y - dragOffY;
+    redraw(); return;
+  }
+
+  // 選択ツール: テキストの上でカーソル変化
+  if(tool === 'select' || tool === 'text') {
+    const idx = findTextAt(p.x, p.y);
+    canvas.style.cursor = idx >= 0 ? 'move' : (tool === 'text' ? 'text' : 'default');
+  }
+
   if(!drawing) return;
   if(tool==='pen'||tool==='marker') {
     currentPath.push({x:p.x,y:p.y}); redraw();
@@ -370,6 +439,13 @@ canvas.onmousemove = (e) => {
 };
 
 canvas.onmouseup = (e) => {
+  // テキストドラッグ終了
+  if(draggingText !== null) {
+    saveHistory();
+    draggingText = null;
+    canvas.style.cursor = tool === 'text' ? 'text' : 'default';
+    return;
+  }
   if(!drawing) return;
   const p = getPos(e); drawing=false;
   if(tool==='pen'||tool==='marker') {
@@ -383,7 +459,7 @@ canvas.onmouseup = (e) => {
   }
   redraw();
 };
-canvas.onmouseleave = () => { drawing=false; };
+canvas.onmouseleave = () => { drawing=false; if(draggingText !== null) { saveHistory(); draggingText=null; } };
 
 // ---- タッチ対応 (スマホ・タブレット) ----
 function getTouchPos(e) {
